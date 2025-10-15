@@ -21,33 +21,40 @@ The dnf and flatpak packages to be installed to the system can be found and modi
 
 ### Custom Tools
 
-#### grun (NVIDIA Prime + Gamescope + Gamemoderun + Proton Env Vars)
+#### grun (Flexible Gamescope Launcher with NVIDIA Prime + GameMode)
 `grun` is placed in `/usr/bin` since Steam launch options could only see it when it is placed there.
 
-A flexible gaming launcher, or just a convenience script, that combines NVIDIA Prime switching, Gamescope, GameMode and some Proton env vars:
-- Automatically sets env vars to switch to DGPU with Prime
-- Pre-configured display presets:
-  - Monitor mode (4K @ 60Hz)
-  - Laptop mode (2560x1600 @ 165Hz)
-  - Projector mode (1080p @ 60Hz)
-- Special RPG Maker mode with pixel-perfect scaling
-- Vulkan/Proton optimizations (DXVK async + Wined3D)
-- NVIDIA Optimus support
-- HDR and adaptive sync support
+A flexible gaming launcher that automatically detects your display settings and combines NVIDIA Prime switching, Gamescope, GameMode and various gaming optimizations:
+- Automatically detects and uses native display resolution and refresh rate
+- Quality presets for different performance targets:
+  - high: Native resolution (e.g., 4K → 4K)
+  - balanced: 75% resolution with FSR (e.g., 4K → 2880x1620)
+  - perf: 50% resolution with FSR (e.g., 4K → 1080p)
+  - rpgmaker: 640x480 with FSR for pixel-perfect scaling
+- Advanced features:
+  - Custom resolution scaling (0.25 to 1.0) with FSR
+  - MangoHud integration with performance metrics
+  - Vulkan/Proton optimizations (DXVK async + Wined3D)
+  - HDR and adaptive sync support
+  - Logging support with system info
+  - NVIDIA Optimus (Prime) support
 
 Usage examples:
 ```bash
-# Run with monitor preset and GameMode
-grun -mg steam://rungameid/123456
+# Run at native resolution with GameMode and MangoHud
+grun -mg %command%
 
-# Run with laptop preset and Vulkan optimizations
-grun -lv %command%
+# Run at balanced preset (75% resolution with FSR)
+grun -q balanced %command%
 
-# Custom resolution with FSR upscaling
-grun --gamescope-args="-W 1280 -H 720 -F fsr" %command%
+# Custom 50% resolution scaling with FSR
+grun --scale=0.5 %command%
+
+# RPG Maker mode with pixel-perfect scaling
+grun -q rpgmaker %command%
 ```
 
-For full options and shortcuts, run: `grun --help`
+For full options and keyboard shortcuts (FSR/NIS controls, etc.), run: `grun --help`
 
 ### Custom Bash Functions
 - `download_playlist`: A YouTube playlist downloader that extracts audio in MP3 format
