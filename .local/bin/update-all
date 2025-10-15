@@ -1,0 +1,43 @@
+#!/bin/bash
+
+update-all() {
+    local exit_code=0
+
+    echo "Updating system packages..."
+    if sudo dnf update -y; then
+        echo "✓ System packages updated"
+    else
+        echo "⚠️  DNF update failed"
+        exit_code=1
+    fi
+
+    echo "Updating Flatpak apps..."
+    if flatpak update -y; then
+        echo "✓ Flatpak apps updated"
+    else
+        echo "⚠️  Flatpak update failed"
+        exit_code=1
+    fi
+
+    echo "Refreshing firmware metadata..."
+    fwupdmgr refresh || true  # Continue even if this fails
+
+    echo "Checking for firmware updates..."
+    fwupdmgr update -y
+    local fw_status=$?
+    
+    case $fw_status in
+        0) echo "✓ Firmware updates installed successfully or already up to date" ;;
+        *) echo "❌ Firmware update error (code: $fw_status)"
+           exit_code=1 ;;
+    esac
+
+    if [ $exit_code -eq 0 ]; then
+        echo "✅ All updates completed successfully!"
+    else
+        echo "⚠️  Updates completed with some errors"
+    fi
+    return $exit_code
+}
+
+update-all

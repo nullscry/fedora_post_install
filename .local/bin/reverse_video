@@ -1,0 +1,121 @@
+#!/bin/bash
+
+reverse_video() {
+    local quality="high"
+    local memory=""
+    local fname=""
+
+    # Parse args
+    for arg in "$@"; do
+        case "$arg" in
+            --quality=*)
+                quality="${arg#*=}"
+                ;;
+            --memory=*)
+                memory="${arg#*=}"
+                ;;
+            *)
+                fname="$arg"
+                ;;
+        esac
+    done
+
+    if [[ -z "$fname" ]]; then
+        echo "Usage: reverse_video [--quality=low|medium|high] [--memory=8G] <video-file>"
+        return 1
+    fi
+
+    # Extract file extension and base name
+    local ext="${fname##*.}"
+    local base="${fname%.*}"
+
+    # Get original codec & bitrate
+    local codec vencoder orig_bitrate
+    codec=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name \
+        -of default=nw=1:nk=1 "$fname")
+    orig_bitrate=$(ffprobe -v error -select_streams v:0 -show_entries stream=bit_rate \
+        -of default=nw=1:nk=1 "$fname")
+
+    case "$codec" in
+        h264) vencoder="libx264" ;;
+        hevc) vencoder="libx265" ;;
+        vp9)  vencoder="libvpx-vp9" ;;
+        *)    vencoder="libx264" ;; # fallback
+    esac
+
+    # Adjust bitrate by quality flag (bitrate scaling factor)
+    local factor=1.0 audio_bitrate
+    case "$quality" in
+        low)    factor=0.7; audio_bitrate=96k ;;
+        medium) factor=1.0; audio_bitrate=160k ;;
+        high|*) factor=1.3; audio_bitrate=192k ;;
+    esac
+
+    # Convert bitrate to kbps
+    local target_bitrate_kbps
+    target_bitrate_kbps=$(printf "%.0f" "$(echo "$orig_bitrate * $factor / 1000" | bc -l)")
+
+    # Calculate segment_time based on memory (if provided)
+    local segment_time=150
+    if [[ -n "$memory" ]]; then
+        local width height duration fps
+        width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width \
+            -of default=nw=1:nk=1 "$fname")
+        height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height \
+            -of default=nw=1:nk=1 "$fname")
+        duration=$(ffprobe -v error -show_entries format=duration \
+            -of default=nw=1:nk=1 "$fname")
+        fps=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate \
+            -of default=nw=1:nk=1 "$fname" | bc -l)
+
+        # Convert memory flag to bytes
+        local mem_bytes
+        if [[ "$memory" =~ ^([0-9]+)G$ ]]; then
+            mem_bytes=$(( ${BASH_REMATCH[1]} * 1024 * 1024 * 1024 ))
+        elif [[ "$memory" =~ ^([0-9]+)M$ ]]; then
+            mem_bytes=$(( ${BASH_REMATCH[1]} * 1024 * 1024 ))
+        else
+            echo "Invalid memory format. Use e.g. --memory=8G"
+            return 1
+        fi
+
+        local frame_bytes=$(( width * height * 3 ))
+        local total_frames=$(printf "%.0f" "$(echo "$duration * $fps" | bc -l)")
+        local total_bytes=$(( frame_bytes * total_frames ))
+
+        # Apply pessimistic factor (20% more memory usage assumed)
+        local adjusted_bytes
+        adjusted_bytes=$(printf "%.0f" "$(echo "$total_bytes * 1.2" | bc -l)")
+
+        local segment_count=$(( (adjusted_bytes + mem_bytes - 1) / mem_bytes ))
+        if (( segment_count < 1 )); then segment_count=1; fi
+
+        segment_time=$(printf "%.0f" "$(echo "$duration / $segment_count" | bc -l)")
+        echo "Splitting into $segment_count segments of ~${segment_time}s each (memory limit: $memory, safety factor 1.2×)"
+    fi
+
+    mkdir -p split
+    ffmpeg -i "$fname" -map 0 -c copy -f segment -segment_time "$segment_time" -reset_timestamps 1 "split/video_%03d.${ext}"
+
+    for f in split/*."$ext"; do
+        ffmpeg -fflags +genpts -i "$f" -vf reverse -af areverse \
+            -c:v "$vencoder" -b:v "${target_bitrate_kbps}k" \
+            -maxrate "${target_bitrate_kbps}k" -bufsize "$((target_bitrate_kbps * 2))k" \
+            -c:a aac -b:a "$audio_bitrate" -async 1 \
+            "${f/%.$ext/_reversed.$ext}"
+    done
+
+    cd split || exit
+    rm -f video_???.${ext}
+
+    find *_reversed."$ext" | sed 's/ /\\ /g' | sed "s/\(.*\)/file '\1'/" > parts_list.txt
+    tac parts_list.txt > reverse_parts_list.txt
+
+    # Re-encode audio to fix potential sync drift
+    ffmpeg -f concat -safe 0 -i reverse_parts_list.txt -c:v copy -c:a aac -b:a "$audio_bitrate" "../reverse_${base}.${ext}"
+
+    cd ..
+    rm -rf split
+}
+
+reverse_video "$@"

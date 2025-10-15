@@ -1,0 +1,15 @@
+#!/bin/bash
+
+download_playlist() {
+    yt-dlp \
+        --continue \
+        --ignore-errors \
+        --no-overwrites \
+        --extract-audio \
+        --audio-format mp3 \
+        --output "%(playlist_index)02d - %(title)s.%(ext)s" \
+        --restrict-filenames \
+        "$@"
+}
+
+download_playlist "$@"
