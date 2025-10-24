@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Service
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin
+MimeType=application/x-ms-dos-executable;application/x-msi;
+Actions=runwine;
+X-KDE-StartupNotify=false
+X-KDE-Priority=TopLevel
+X-KDE-PopupMode=0
+
+[Desktop Action runwine]
+Name=Run with Wine
+Icon=wine
+Exec=wine "%f"
+
