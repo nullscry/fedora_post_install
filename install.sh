@@ -28,14 +28,22 @@ if [ -d "$SCRIPT_DIR/.config" ]; then
     echo "Configuration files installed successfully"
 fi
 
-# Copy .local/bin scripts
-if [ -d "$SCRIPT_DIR/.local/bin" ]; then
-    echo "Installing user scripts..."
-    mkdir -p "/home/$SUDO_USER/.local/bin"
-    cp -r "$SCRIPT_DIR/.local/bin"/* "/home/$SUDO_USER/.local/bin/"
-    chmod +x /home/$SUDO_USER/.local/bin/*
+# Copy entire .local directory
+if [ -d "$SCRIPT_DIR/.local" ]; then
+    echo "Installing user .local files..."
+    mkdir -p "/home/$SUDO_USER/.local"
+    # Copy all files and directories from repo .local into the user's .local
+    # -a preserves attributes where possible; trailing "." ensures contents are copied
+    cp -a "$SCRIPT_DIR/.local/." "/home/$SUDO_USER/.local/"
+
+    # Make any files in .local/bin executable (if the directory exists)
+    if [ -d "/home/$SUDO_USER/.local/bin" ]; then
+        chmod +x "/home/$SUDO_USER/.local/bin"/* 2>/dev/null || true
+    fi
+
+    # Fix ownership recursively
     chown -R "$SUDO_USER:$SUDO_USER" "/home/$SUDO_USER/.local"
-    echo "User scripts installed successfully"
+    echo "User .local files installed successfully"
 fi
 
 # Make usr/bin files executable and copy them to /usr/bin
