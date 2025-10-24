@@ -317,7 +317,12 @@ dnf remove -y \
     kdepim-addons \
     plasma-discover \
     plasma-discover-notifier \
-    kwrite
+    kwrite \
+    elisa-player \
+    dragon \
+    kmahjongg \
+    kmines \
+    kpat
 
 dnf autoremove -y
 
