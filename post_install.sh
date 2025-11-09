@@ -226,6 +226,12 @@ echo ntsync | tee /etc/modules-load.d/ntsync.conf
 modprobe ntsync
 
 #######################
+# RPG-Maker for linux wrapper
+#######################
+echo "🎲 Installing RPG-Maker for Linux wrapper..."
+wget -qO- "https://raw.githubusercontent.com/bakustarver/rpgmakermlinux-cicpoffs/main/installgithub.sh" | bash
+
+#######################
 # Configure Steam, Steam Input and Gamescope
 #######################
 
