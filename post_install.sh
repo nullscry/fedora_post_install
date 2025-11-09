@@ -127,7 +127,8 @@ dnf install -y \
     kate \
     krita \
     syncthing \
-    discord
+    discord \
+    asusctl
 
 echo "📱 Installing Flatpak applications..."
 # Ensure Flathub is available
