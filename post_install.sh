@@ -55,6 +55,10 @@ systemctl disable NetworkManager-wait-online.service
 
 echo "🎮 Installing gaming utilities (GameMode, MangoHUD, Vulkan)..."
 dnf install -y \
+    wine \
+    wine-mono \
+    winetricks \
+    protontricks \
     gamemode \
     mangohud \
     vulkan-tools \
@@ -108,8 +112,6 @@ dnf install -y \
     btop \
     lsd \
     steam \
-    winetricks \
-    protontricks \
     lutris \
     kitty \
     qbittorrent \
