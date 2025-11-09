@@ -30,7 +30,7 @@ dnf group install -y sound-and-video
 echo "🎬 Installing video codecs and hardware acceleration support..."
 dnf install -y \
     libva-utils \
-    openh264 \
+    noopenh264 \
     mozilla-openh264 \
     gstreamer1-plugin-openh264 \
     gstreamer1-plugin-libav \
