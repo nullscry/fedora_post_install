@@ -58,6 +58,12 @@ if [ -d "$SCRIPT_DIR/usr/bin" ]; then
     done
 fi
 
+# Copy etc configurations
+echo "Installing configurations to /etc"
+if [ -d "$SCRIPT_DIR/etc" ]; then
+    cp -rf "$SCRIPT_DIR/etc/" "/etc/"
+fi
+
 # Run post installation script
 echo "Running post-installation script..."
 if [ -f "$SCRIPT_DIR/post_install.sh" ]; then
