@@ -130,7 +130,8 @@ dnf install -y \
     krita \
     syncthing \
     discord \
-    asusctl
+    asusctl \
+    keepassxc
 
 echo "📱 Installing Flatpak applications..."
 # Ensure Flathub is available
@@ -141,7 +142,8 @@ flatpak install --or-update --assumeyes flathub \
     com.spotify.Client \
     net.davidotek.pupgui2 \
     com.rafaelmardojai.Blanket \
-    it.mijorus.gearlever
+    it.mijorus.gearlever \
+    com.bitwarden.desktop
 
 #######################
 # Sunshine Installation
