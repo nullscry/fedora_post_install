@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# pge - ProtonGE Environmental Variables Setup
+# This script sets up environment variables for running Windows games on Linux using ProtonGE,
+# specifically optimized for NVIDIA GPUs. It allows enabling HDR and Wayland support.
+
+log_message() {
+    echo "$1" >&2
+}
+
+print_help() {
+    cat << EOF
+Usage: pge [OPTIONS] GAME_COMMAND [ARGS...]
+
+Bring sane defaults for running Windows games on Linux using ProtonGE with NVIDIA GPUs.
+Defaults are: 
+- __NV_PRIME_RENDER_OFFLOAD=1
+- __VK_LAYER_NV_optimus=NVIDIA_only
+- __GLX_VENDOR_LIBRARY_NAME=nvidia
+- PROTON_ENABLE_NVAPI=1
+- PROTON_HIDE_NVIDIA_GPU=0
+
+Options:
+  -d, --hdr       Enable HDR support: add PROTON_ENABLE_HDR=1, DXVK_HDR=1 and ENABLE_HDR_WSI=1
+  -w, --wayland   Enable Wayland support: add PROTON_ENABLE_WAYLAND=1
+  -h, --help      Show this help message
+
+Examples:
+  pge steam steam://rungameid/123456
+  pge -d wine /path/to/game.exe
+  pge -d -w %command% (as steam launch options)
+EOF
+}
+
+# Parse flags and collect game command
+GAME_CMD=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -d|--hdr)
+            HDR=1
+            shift
+            ;;
+        -w|--wayland)
+            WAYLAND=1
+            shift
+            ;;
+        -h|--help)
+            print_help
+            exit 0
+            ;;
+        --*)
+            log_message "Unknown option: $1"
+            print_help
+            exit 1
+            ;;
+        -*)
+            log_message "Unknown short option: $1"
+            print_help
+            exit 1
+            ;;
+        *)
+            GAME_CMD=("$@")
+            break
+            ;;
+    esac
+done
+
+# Prepare environment variables prefix (no export)
+ENV_VARS="__NV_PRIME_RENDER_OFFLOAD=1 __VK_LAYER_NV_optimus=NVIDIA_only __GLX_VENDOR_LIBRARY_NAME=nvidia PROTON_ENABLE_NVAPI=1 PROTON_HIDE_NVIDIA_GPU=0"
+if [[ $HDR -eq 1 ]]; then
+    ENV_VARS="$ENV_VARS PROTON_ENABLE_HDR=1 DXVK_HDR=1 ENABLE_HDR_WSI=1"
+fi
+if [[ $WAYLAND -eq 1 ]]; then
+    ENV_VARS="$ENV_VARS PROTON_ENABLE_WAYLAND=1"
+fi
+
+# Execute the command with environment variables
+env $ENV_VARS "${GAME_CMD[@]}"
