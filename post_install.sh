@@ -267,19 +267,22 @@ setcap 'CAP_SYS_NICE=eip' "$(which gamescope)"
 # Wifi Fixes for Mediatek MT7922 chip using the mt7921e driver
 #######################
 
-# Check with these commands to see if you have this hardware:
-# lsmod | grep mt
-# lspci -v | grep -A 10 Network
+# Check if the hardware is present
+if lspci -v 2>/dev/null | grep -A 10 Network | grep -q "Kernel modules: mt7921e"; then
+    echo "📡 Applying Wifi fixes for Mediatek MT7922 chip..."
 
-# Permanent fix - add this line to NetworkManager config
-echo -e '\n[connection]\nwifi.powersave = 2' | tee -a /etc/NetworkManager/conf.d/wifi-powersave.conf
+    # Permanent fix - add this line to NetworkManager config
+    echo -e '\n[connection]\nwifi.powersave = 2' | tee -a /etc/NetworkManager/conf.d/wifi-powersave.conf
 
-# Create a config file for the driver
-echo 'options mt7921e disable_aspm=1' | tee /etc/modprobe.d/mt7921e.conf
+    # Create a config file for the driver
+    echo 'options mt7921e disable_aspm=1' | tee /etc/modprobe.d/mt7921e.conf
 
-# Reload the driver
-modprobe -r mt7921e
-modprobe mt7921e
+    # Reload the driver
+    modprobe -r mt7921e
+    modprobe mt7921e
+else
+    echo "📡 Mediatek MT7922 chip not detected, skipping Wifi fixes."
+fi
 
 #######################
 # Visual Customization
