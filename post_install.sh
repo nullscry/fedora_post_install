@@ -224,7 +224,6 @@ set_gamemode_ini_general() {
 # Configure GameMode settings
 set_gamemode_ini_general renice 10
 set_gamemode_ini_general softrealtime on
-set_gamemode_ini_general desiredgov performance
 
 # Load ntsync module at boot
 echo ntsync | tee /etc/modules-load.d/ntsync.conf
