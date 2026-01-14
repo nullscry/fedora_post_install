@@ -46,18 +46,6 @@ if [ -d "$SCRIPT_DIR/.local" ]; then
     echo "User .local files installed successfully"
 fi
 
-# Make usr/bin files executable and copy them to /usr/bin
-echo "Installing executables to /usr/bin..."
-if [ -d "$SCRIPT_DIR/usr/bin" ]; then
-    for file in "$SCRIPT_DIR/usr/bin"/*; do
-        if [ -f "$file" ]; then
-            chmod +x "$file"
-            cp "$file" "/usr/bin/"
-            echo "Installed: $(basename "$file")"
-        fi
-    done
-fi
-
 # Copy etc configurations
 echo "Installing configurations to /etc"
 if [ -d "$SCRIPT_DIR/etc" ]; then
