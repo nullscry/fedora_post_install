@@ -341,7 +341,7 @@ dnf autoremove -y
 # Update System
 #######################
 echo "🔄 Updating system (DNF, Flatpak, Firmware)..."
-update-all
+update_all
 
 #######################
 # Quad9 DNS Setup
