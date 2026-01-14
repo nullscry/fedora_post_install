@@ -27,7 +27,6 @@ The dnf and flatpak packages to be installed to the system can be found and modi
 - `update_all`: A comprehensive system update function that handles:
   - System packages (DNF)
   - Flatpak applications
-  - Firmware updates
 
 ### Custom Aliases
 - `py` for Python 3
