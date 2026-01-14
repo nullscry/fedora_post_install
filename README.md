@@ -21,41 +21,6 @@ The dnf and flatpak packages to be installed to the system can be found and modi
 
 ### Custom Tools
 
-#### grun (Flexible Gamescope Launcher with NVIDIA Prime + GameMode)
-`grun` is placed in `/usr/bin` since Steam launch options could only see it when it is placed there.
-
-A flexible gaming launcher that automatically detects your display settings and combines NVIDIA Prime switching, Gamescope, GameMode and various gaming optimizations:
-- Automatically detects and uses native display resolution and refresh rate
-- Quality presets for different performance targets:
-  - high: Native resolution (e.g., 4K → 4K)
-  - balanced: 75% resolution with FSR (e.g., 4K → 2880x1620)
-  - perf: 50% resolution with FSR (e.g., 4K → 1080p)
-  - rpgmaker: 640x480 with FSR for pixel-perfect scaling
-- Advanced features:
-  - Custom resolution scaling (0.25 to 1.0) with FSR
-  - MangoHud integration with performance metrics
-  - Vulkan/Proton optimizations (DXVK async + Wined3D)
-  - HDR and adaptive sync support
-  - Logging support with system info
-  - NVIDIA Optimus (Prime) support
-
-Usage examples:
-```bash
-# Run at native resolution with GameMode and MangoHud
-grun -mg %command%
-
-# Run at balanced preset (75% resolution with FSR)
-grun -q balanced %command%
-
-# Custom 50% resolution scaling with FSR
-grun --scale=0.5 %command%
-
-# RPG Maker mode with pixel-perfect scaling
-grun -q rpgmaker %command%
-```
-
-For full options and keyboard shortcuts (FSR/NIS controls, etc.), run: `grun --help`
-
 ### Custom Bash Functions
 - `download_playlist`: A YouTube playlist downloader that extracts audio in MP3 format
 - `reverse_video`: A sophisticated video reversal tool with quality and memory management options
@@ -156,6 +121,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - [RPM Fusion](https://rpmfusion.org/) for additional package repositories
-- [GameMode](https://github.com/FeralInteractive/gamemode) by Feral Interactive
-- [Gamescope](https://github.com/Plagman/gamescope) by Valve
 - [Starship](https://starship.rs/) for the cross-shell prompt
