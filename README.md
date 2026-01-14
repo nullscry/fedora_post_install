@@ -24,7 +24,7 @@ The dnf and flatpak packages to be installed to the system can be found and modi
 ### Custom Bash Functions
 - `download_playlist`: A YouTube playlist downloader that extracts audio in MP3 format
 - `reverse_video`: A sophisticated video reversal tool with quality and memory management options
-- `update-all`: A comprehensive system update function that handles:
+- `update_all`: A comprehensive system update function that handles:
   - System packages (DNF)
   - Flatpak applications
   - Firmware updates
