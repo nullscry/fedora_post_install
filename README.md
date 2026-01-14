@@ -9,7 +9,6 @@ I have been trying different linux distros in the past years and found myself co
 A comprehensive post-installation setup script collection for Fedora Linux, focusing on gaming, development, and multimedia support. Features automated setup of drivers, codecs, gaming tools, development environments, and quality-of-life improvements.
 
 - Custom `.bashrc` configuration with useful aliases and functions
-- Custom executable scripts in `usr/bin/`
 - Preconfigured dotfiles in `.config/` for various applications
 - A post-installation script (`post_install.sh`) that sets up various system configurations
 
