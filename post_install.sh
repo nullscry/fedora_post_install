@@ -170,8 +170,8 @@ sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install ruff pre-commit tw
 echo "🦀 Installing Rust and development tools..."
 sudo -Hu "$SUDO_USER" bash -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
 
-# Add Cargo environment to bashrc if not present
-if ! grep -q '\.cargo/env' "$USER_HOME/.bashrc"; then
+# Add Cargo environment to bashrc if not already a symlink (dotfiles) and not present
+if [ ! -L "$USER_HOME/.bashrc" ] && ! grep -q '\.cargo/env' "$USER_HOME/.bashrc"; then
     echo '# Load Cargo environment' >> "$USER_HOME/.bashrc"
     echo '. "$HOME/.cargo/env"' >> "$USER_HOME/.bashrc"
 fi
@@ -305,7 +305,7 @@ sudo -Hu "$SUDO_USER" fc-cache -fv
 # Install and configure Starship prompt
 echo "🚀 Installing Starship prompt..."
 curl -sS https://starship.rs/install.sh | sh
-if ! grep -q 'starship init bash' "/home/$SUDO_USER/.bashrc"; then
+if [ ! -L "/home/$SUDO_USER/.bashrc" ] && ! grep -q 'starship init bash' "/home/$SUDO_USER/.bashrc"; then
     echo '# Starship Prompt' >> "/home/$SUDO_USER/.bashrc"
     echo 'eval "$(starship init bash)"' >> "/home/$SUDO_USER/.bashrc"
 fi
