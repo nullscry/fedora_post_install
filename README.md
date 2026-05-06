@@ -6,90 +6,38 @@
 
 I have been trying different linux distros in the past years and found myself coming back to Fedora a few times until I finally settled with it for my daily driver. I wanted to automate things I did after the initial installation, so here it is:
 
-A comprehensive post-installation setup script collection for Fedora Linux, focusing on gaming, development, and multimedia support. Features automated setup of drivers, codecs, gaming tools, development environments, and quality-of-life improvements.
+A post-installation setup script for Fedora Linux, focusing on gaming, development, and multimedia support. Sets up drivers, codecs, gaming tools, development environments, and a few quality-of-life tweaks.
 
-- Custom `.bashrc` configuration with useful aliases and functions
-- Preconfigured dotfiles in `.config/` for various applications
-- A post-installation script (`post_install.sh`) that sets up various system configurations
+This repo only handles the **system-level** bootstrap. Personal dotfiles (shell, terminal, KDE config, etc.) live in a separate repo and are managed with [GNU Stow](https://www.gnu.org/software/stow/).
 
-## Features
+## What this does
 
-### Packages To Install
+- `post_install.sh` — installs RPM Fusion, multimedia codecs, GPU drivers, gaming stack (Steam / Wine / GameMode / MangoHUD), development tools (uv, rustup, VS Code Insiders), Sunshine, fonts, Starship, sets Quad9 DNS, applies hardware-specific fixes (MT7922 wifi), and a few KDE cleanups.
+- `etc/dnf/dnf.conf` — sane DNF defaults copied to `/etc/dnf/`.
+- `install.sh` — thin wrapper that copies `etc/` and runs `post_install.sh`.
 
-The dnf and flatpak packages to be installed to the system can be found and modified in `post_install.sh` under `Software Installation` section.
-
-### Custom Tools
-
-### Custom Bash Functions
-- `download_playlist`: A YouTube playlist downloader that extracts audio in MP3 format
-- `reverse_video`: A sophisticated video reversal tool with quality and memory management options
-- `update_all`: A comprehensive system update function that handles:
-  - System packages (DNF)
-  - Flatpak applications
-
-### Custom Aliases
-- `py` for Python 3
-- `venv` for activating Python virtual environments
-- `code` for VS Code Insiders
-- `ls` and `ll` using `lsd` for enhanced directory listings
-- Colored `grep` output
-
-### Application Configurations
-The `.config/` directory contains preconfigured settings for various applications:
-
-#### Starship
-Modern, minimal, and customizable prompt for any shell
-- Location: `.config/starship.toml`
-
-#### EasyEffects
-Audio effects for PipeWire applications
-- Location: `.config/easyeffects/`
-- Included presets:
-  - **Output Profiles**:
-    - Laptop Booster (For Speakers)
-    - Empty (For HDMI and Headset)
-  - **Device Configurations**:
-    - HDMI output
-    - Analog speakers
-    - Bluetooth headset
-
-#### Kitty
-A fast, feature-rich, GPU based terminal emulator
-- Location: `.config/kitty/`
-- Features:
-  - Custom theme configuration with Monokai Pro
-  - Configured to use Cousine Nerd Font
-
-#### KGlobalShortcuts
-KDE Plasma global keyboard shortcuts configuration
-- Location: `.config/kglobalshortcutsrc`
+The dnf and flatpak package lists live in `post_install.sh` under the `Software Installation` section.
 
 ## Installation
 
 1. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/post_install.git
-   cd post_install
+   git clone https://github.com/yourusername/fedora_post_install.git
+   cd fedora_post_install
    ```
 
-2. Run the installer script with sudo privileges:
+2. Run the installer with sudo:
    ```bash
    sudo ./install.sh
    ```
 
 The installer will:
-1. Back up your existing `.bashrc` (if any) to `.bashrc.backup`
-2. Install the new `.bashrc` configuration
-3. Copy application configurations from `.config/` to your home directory
-4. Copy and make executable all custom scripts to `/usr/bin/`
-5. Run the post-installation script (`post_install.sh`)
+1. Copy `etc/` configurations into `/etc/`
+2. Run `post_install.sh`
 
 ## Note
 
-Please review the scripts before running them to ensure they align with your needs. You may want to check:
-- `.bashrc` for the custom aliases and functions
-- `usr/bin/` for the custom executables
-- `post_install.sh` for the post-installation configurations
+Please review the scripts before running them. In particular check `post_install.sh` for the package list, kernel cmdline args, and DNS settings.
 
 ## Contributing
 

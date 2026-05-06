@@ -21,6 +21,8 @@ dnf install -y \
 echo "🎥 Setting up multimedia support..."
 # Basic multimedia packages
 dnf install -y fuse
+# dnf4 used here: dnf5's group install for 'multimedia' was unreliable
+# during the F42/F43 transition. Revisit once F44+ is the baseline.
 dnf4 group install multimedia
 dnf swap 'ffmpeg-free' 'ffmpeg' --allowerasing
 dnf upgrade @multimedia --setopt="install_weak_deps=False"
@@ -89,7 +91,7 @@ if lspci | grep -i nvidia &>/dev/null; then
     grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau modprobe.blacklist=nouveau nvidia-drm.modeset=1"
 
     # Get NVIDIA driver version from installed package
-    version=$(dnf list installed akmod-nvidia-open --quiet | grep akmod-nvidia-open | awk '{print $2}' | cut -d':' -f2 | cut -d'.' -f1-2 | tr '.' '-')
+    version=$(dnf repoquery --installed --qf '%{version}' akmod-nvidia-open | cut -d. -f1-2 | tr . -)
     echo "🧩 Installing Flatpak NVIDIA driver version: $version"
     flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
     flatpak install -y flathub "org.freedesktop.Platform.GL.nvidia-$version"
@@ -148,35 +150,34 @@ flatpak install --or-update --assumeyes flathub \
 #######################
 # Sunshine Installation
 #######################
-sudo dnf copr enable lizardbyte/stable -y
+dnf copr enable lizardbyte/stable -y
 dnf install -y Sunshine
-sudo setcap cap_sys_admin+p $(readlink -f $(which sunshine))
+setcap cap_sys_admin+p $(readlink -f $(which sunshine))
 
 #######################
 # Development Environment
 #######################
 
 echo "🛠️ Setting up development environment..."
-# Install UV package manager
-echo "📦 Installing UV package manager and Python tools..."
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv tool install ruff pre-commit twine
+USER_HOME="/home/$SUDO_USER"
 
-# Install Rust
+# Install UV package manager (as the target user, into their home)
+echo "📦 Installing UV package manager and Python tools..."
+sudo -Hu "$SUDO_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
+sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install ruff pre-commit twine
+
+# Install Rust (as the target user, into their home)
 echo "🦀 Installing Rust and development tools..."
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+sudo -Hu "$SUDO_USER" bash -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
 
 # Add Cargo environment to bashrc if not present
-if ! grep -q '. "$HOME/.cargo/env"' /home/$SUDO_USER/.bashrc; then
-    echo "# Load Cargo environment" >> /home/$SUDO_USER/.bashrc
-    echo '. "$HOME/.cargo/env"' >> /home/$SUDO_USER/.bashrc
+if ! grep -q '\.cargo/env' "$USER_HOME/.bashrc"; then
+    echo '# Load Cargo environment' >> "$USER_HOME/.bashrc"
+    echo '. "$HOME/.cargo/env"' >> "$USER_HOME/.bashrc"
 fi
 
-# Source Cargo environment
-. "$HOME/.cargo/env"
-
-# Install Rust components
-rustup component add rustfmt clippy rust-analyzer rust-src rust-docs
+# Install Rust components (as the target user)
+sudo -Hu "$SUDO_USER" "$USER_HOME/.cargo/bin/rustup" component add rustfmt clippy rust-analyzer rust-src rust-docs
 
 # Install VS Code Insiders
 echo "💻 Installing Visual Studio Code Insiders..."
@@ -246,13 +247,13 @@ usermod -aG input $SUDO_USER
 # Configure Steam's desktop entry for better compatibility
 echo "🎮 Configuring Steam desktop entry with -steamos3 flag..."
 echo "Adding the -steamos3 parameter to the Steam desktop entry fixes Steam input controller issues when running games with gamescope"
-STEAM_DESKTOP="~/.local/share/applications/steam.desktop"
+STEAM_DESKTOP="/home/$SUDO_USER/.local/share/applications/steam.desktop"
 if [ -f "$STEAM_DESKTOP" ]; then
     # Create backup of original desktop file
     cp "$STEAM_DESKTOP" "$STEAM_DESKTOP.backup"
-    
+
     # Update the Exec line to include steamos3 parameter
-    sed -i 's/^Exec=/usr/bin/steam %U$/Exec=/usr/bin/steam -steamos3 %U/' "$STEAM_DESKTOP"
+    sed -i 's|^Exec=/usr/bin/steam %U$|Exec=/usr/bin/steam -steamos3 %U|' "$STEAM_DESKTOP"
     echo "✅ Steam desktop entry updated with SteamOS 3 compatibility flag"
 else
     echo "⚠️  Steam desktop entry not found - please install Steam first"
@@ -299,13 +300,15 @@ mkdir -p /home/$SUDO_USER/.local/share/fonts/
 cp *.ttf /home/$SUDO_USER/.local/share/fonts/
 cp *.otf /home/$SUDO_USER/.local/share/fonts/ 2>/dev/null || true
 chown -R $SUDO_USER:$SUDO_USER /home/$SUDO_USER/.local/share/fonts
-fc-cache -fv
+sudo -Hu "$SUDO_USER" fc-cache -fv
 
 # Install and configure Starship prompt
 echo "🚀 Installing Starship prompt..."
 curl -sS https://starship.rs/install.sh | sh
-echo '# Starship Prompt' >> /home/$SUDO_USER/.bashrc
-echo 'eval "$(starship init bash)"' >> /home/$SUDO_USER/.bashrc
+if ! grep -q 'starship init bash' "/home/$SUDO_USER/.bashrc"; then
+    echo '# Starship Prompt' >> "/home/$SUDO_USER/.bashrc"
+    echo 'eval "$(starship init bash)"' >> "/home/$SUDO_USER/.bashrc"
+fi
 
 # Cleanup temporary directory
 rm -rf "$TEMP_DIR"
@@ -342,8 +345,9 @@ dnf autoremove -y
 #######################
 # Update System
 #######################
-echo "🔄 Updating system (DNF, Flatpak, Firmware)..."
-update_all
+echo "🔄 Updating system (DNF, Flatpak)..."
+dnf upgrade -y --refresh
+flatpak update -y
 
 #######################
 # Quad9 DNS Setup
@@ -352,20 +356,20 @@ echo "🌐 Setting up Quad9 DNS servers for enhanced privacy and security..."
 # System-wide Quad9 DNS setup for Fedora (NetworkManager)
 
 # 1. Create main config to ensure NetworkManager handles DNS itself
-sudo tee /etc/NetworkManager/conf.d/dns.conf > /dev/null <<'EOF'
+tee /etc/NetworkManager/conf.d/dns.conf > /dev/null <<'EOF'
 [main]
 dns=default
 EOF
 
 # 2. Create global DNS config file with Quad9 servers
-sudo tee /etc/NetworkManager/conf.d/90-dns-servers.conf > /dev/null <<'EOF'
+tee /etc/NetworkManager/conf.d/90-dns-servers.conf > /dev/null <<'EOF'
 [global-dns]
 servers=9.9.9.9,149.112.112.112
 EOF
 
 # 3. Restart NetworkManager to apply changes
 echo "Restarting NetworkManager..."
-sudo systemctl restart NetworkManager
+systemctl restart NetworkManager
 
 #######################
 # Final Instructions
