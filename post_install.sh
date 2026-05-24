@@ -41,6 +41,12 @@ dnf install -y \
     gstreamer1-plugins-ugly \
     gstreamer1-vaapi
 
+# Swap Fedora's codec-stripped VAAPI driver for the RPM Fusion build.
+# Stock mesa-va-drivers removes H.264/HEVC encode (only AV1 remains), which
+# breaks VAAPI hardware encoding on AMD/Intel iGPUs — Sunshine then silently
+# falls back to software x264. Requires RPM Fusion (enabled above).
+dnf swap -y mesa-va-drivers mesa-va-drivers-freeworld --allowerasing
+
 # Enable Cisco's OpenH264 repository
 dnf config-manager setopt fedora-cisco-openh264.enabled=1
 
