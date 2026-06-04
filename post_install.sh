@@ -170,7 +170,7 @@ USER_HOME="/home/$SUDO_USER"
 # Install UV package manager (as the target user, into their home)
 echo "📦 Installing UV package manager and Python tools..."
 sudo -Hu "$SUDO_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
-sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install ruff pre-commit twine
+sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install ruff pre-commit twine basedpyright
 
 # Install Rust (as the target user, into their home)
 echo "🦀 Installing Rust and development tools..."
@@ -184,12 +184,6 @@ fi
 
 # Install Rust components (as the target user)
 sudo -Hu "$SUDO_USER" "$USER_HOME/.cargo/bin/rustup" component add rustfmt clippy rust-analyzer rust-src rust-docs
-
-# Install VS Code Insiders
-echo "💻 Installing Visual Studio Code Insiders..."
-rpm --import https://packages.microsoft.com/keys/microsoft.asc
-echo -e "[code]\nname=Visual Studio Code\nbaseurl=https://packages.microsoft.com/yumrepos/vscode\nenabled=1\nautorefresh=1\ntype=rpm-md\ngpgcheck=1\ngpgkey=https://packages.microsoft.com/keys/microsoft.asc" > /etc/yum.repos.d/vscode.repo
-dnf install -y code-insiders
 
 #######################
 # Gaming Optimizations

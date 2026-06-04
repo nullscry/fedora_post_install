@@ -12,7 +12,7 @@ This repo only handles the **system-level** bootstrap. Personal dotfiles (shell,
 
 ## What this does
 
-- `post_install.sh` — installs RPM Fusion, multimedia codecs, GPU drivers, gaming stack (Steam / Wine / GameMode / MangoHUD), development tools (uv, rustup, VS Code Insiders), Sunshine, fonts, Starship, sets Quad9 DNS, applies hardware-specific fixes (MT7922 wifi), and a few KDE cleanups.
+- `post_install.sh` — installs RPM Fusion, multimedia codecs, GPU drivers, gaming stack (Steam / Wine / GameMode / MangoHUD), development tools (uv, rustup), Sunshine, fonts, Starship, sets Quad9 DNS, applies hardware-specific fixes (MT7922 wifi), and a few KDE cleanups.
 - `etc/dnf/dnf.conf` — sane DNF defaults copied to `/etc/dnf/`.
 - `install.sh` — thin wrapper that copies `etc/` and runs `post_install.sh`.
 
