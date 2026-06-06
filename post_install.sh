@@ -285,6 +285,19 @@ else
 fi
 
 #######################
+# Bluetooth controllers
+#######################
+
+# Disable Bluetooth ERTM (Enhanced Retransmission Mode). Third-party / counterfeit
+# DualShock 4 controllers choke on the L2CAP ERTM negotiation and self-disconnect
+# ~1.4s after connecting; disabling ERTM lets them stay connected on the full
+# hid_playstation driver (gyro/touchpad/lightbar intact). ERTM is only used by
+# HID/controllers, so disabling it is safe for other Bluetooth devices.
+echo "🎮 Disabling Bluetooth ERTM for third-party DualShock 4 controllers..."
+echo 'options bluetooth disable_ertm=1' | tee /etc/modprobe.d/bluetooth-disable-ertm.conf
+echo 1 > /sys/module/bluetooth/parameters/disable_ertm 2>/dev/null || true
+
+#######################
 # Visual Customization
 #######################
 
