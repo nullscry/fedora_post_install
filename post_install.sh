@@ -298,6 +298,24 @@ echo 'options bluetooth disable_ertm=1' | tee /etc/modprobe.d/bluetooth-disable-
 echo 1 > /sys/module/bluetooth/parameters/disable_ertm 2>/dev/null || true
 
 #######################
+# Logitech MX Vertical — remap top "DPI" button (logiops)
+#######################
+
+# The MX Vertical's top "DPI Switch" button (HID++ CID 0xFD) is firmware-trapped and
+# emits no evdev event, so it can't be bound directly. logiops remaps it via the kernel
+# uinput device (see etc/logid.cfg: CID 0xFD -> KEY_F12), which — unlike Solaar's XTEST
+# injection — reaches games that read raw input (WoW under Proton/XWayland). The config
+# is deployed to /etc/logid.cfg by install.sh. Only act if a Logitech receiver/device
+# is present.
+if lsusb 2>/dev/null | grep -qi "logitech"; then
+    echo "🖱️  Installing logiops for Logitech MX Vertical button remap..."
+    dnf install -y logiops
+    systemctl enable --now logid
+else
+    echo "🖱️  No Logitech device detected, skipping logiops setup."
+fi
+
+#######################
 # Visual Customization
 #######################
 
