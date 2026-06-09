@@ -305,12 +305,16 @@ echo 1 > /sys/module/bluetooth/parameters/disable_ertm 2>/dev/null || true
 # emits no evdev event, so it can't be bound directly. logiops remaps it via the kernel
 # uinput device (see etc/logid.cfg: CID 0xFD -> KEY_F12), which — unlike Solaar's XTEST
 # injection — reaches games that read raw input (WoW under Proton/XWayland). The config
-# is deployed to /etc/logid.cfg by install.sh. Only act if a Logitech receiver/device
-# is present.
+# is deployed to /etc/logid.cfg by install.sh. A udev rule (etc/udev/rules.d/99-logid-rebind.rules,
+# also deployed by install.sh) restarts logid when the mouse wakes from deep sleep, since
+# logiops otherwise loses the DPI->F12 binding on reconnect. Only act if a Logitech
+# receiver/device is present.
 if lsusb 2>/dev/null | grep -qi "logitech"; then
     echo "🖱️  Installing logiops for Logitech MX Vertical button remap..."
     dnf install -y logiops
     systemctl enable --now logid
+    # Load the rebind-on-wake udev rule without a reboot.
+    udevadm control --reload-rules && udevadm trigger --subsystem-match=hid
 else
     echo "🖱️  No Logitech device detected, skipping logiops setup."
 fi

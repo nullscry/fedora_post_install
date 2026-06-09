@@ -15,6 +15,7 @@ This repo only handles the **system-level** bootstrap. Personal dotfiles (shell,
 - `post_install.sh` — installs RPM Fusion, multimedia codecs, GPU drivers, gaming stack (Steam / Wine / GameMode / MangoHUD), development tools (uv, rustup), Sunshine, fonts, Starship, sets Quad9 DNS, applies hardware-specific fixes (MT7922 wifi, Logitech MX Vertical button remap via logiops), and a few KDE cleanups.
 - `etc/dnf/dnf.conf` — sane DNF defaults copied to `/etc/dnf/`.
 - `etc/logid.cfg` — logiops config; remaps the MX Vertical's firmware-trapped top DPI button to `F12` via uinput.
+- `etc/udev/rules.d/99-logid-rebind.rules` — restarts `logid` when the MX Vertical wakes from deep sleep, so the DPI→F12 remap survives reconnects (logiops drops the binding otherwise).
 - `install.sh` — thin wrapper that copies `etc/` and runs `post_install.sh`.
 
 The dnf and flatpak package lists live in `post_install.sh` under the `Software Installation` section.

@@ -1,0 +1,13 @@
+# Re-apply logiops button remaps when the MX Vertical wakes from deep sleep / reconnects.
+#
+# The mouse pairs through a Logitech Unifying Receiver (046d:c52b) that stays plugged in,
+# so no USB add/remove event fires when the mouse just naps. On a *deep* wake the
+# hid-logitech-dj driver re-creates the mouse's child HID node — and that drops logiops'
+# DPI->F12 binding, so the top button reverts to its firmware default until logid is
+# restarted. The node re-create fires the `add` event matched below, so we restart logid
+# to rebind. Light naps keep the node alive (binding survives) and produce no event, so
+# this only triggers when a rebind is actually needed.
+#
+# HID_NAME is a real udev env property on hid-subsystem add events (see: udevadm info -e).
+# --no-block so udev doesn't wait on the systemd job. To debug: udevadm monitor --subsystem-match=hid
+ACTION=="add", SUBSYSTEM=="hid", ENV{HID_NAME}=="Logitech MX Vertical", RUN+="/usr/bin/systemctl --no-block restart logid.service"
