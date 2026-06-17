@@ -263,8 +263,16 @@ PROTON_USE_NTSYNC=1
 PROTON_NO_ESYNC=1
 PROTON_NO_FSYNC=1
 EOF
+cat > "$ENVD_DIR/dlss.conf" <<'EOF'
+# Auto-update DLSS DLLs to the latest version shipped with the NVIDIA driver,
+# per game, at launch (Steam + Heroic). No-op for games that don't use DLSS;
+# upgrades the bundled nvngx_dlss DLL for those that do. Still requires DLSS to
+# be enabled in each game's own graphics menu.
+PROTON_ENABLE_NGX_UPDATER=1
+EOF
 chown -R "$SUDO_USER:$SUDO_USER" "$ENVD_DIR"
 echo "✅ ntsync set as default Proton sync backend (takes effect after re-login)"
+echo "✅ DLSS auto-updater enabled for Proton games (takes effect after re-login)"
 
 #######################
 # RPG-Maker for linux wrapper
