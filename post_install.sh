@@ -270,9 +270,18 @@ cat > "$ENVD_DIR/dlss.conf" <<'EOF'
 # be enabled in each game's own graphics menu.
 PROTON_ENABLE_NGX_UPDATER=1
 EOF
+cat > "$ENVD_DIR/mangohud.conf" <<'EOF'
+# Load MangoHud's Vulkan layer into every Vulkan app in the session (covers all
+# Proton games in Steam + Heroic with no per-game setup). The overlay starts
+# hidden and the blacklist for non-game apps live in ~/.config/MangoHud/
+# MangoHud.conf (tracked in the dotfiles repo). Toggle overlay Shift_R+F12,
+# cycle FPS cap Shift_L+F1.
+MANGOHUD=1
+EOF
 chown -R "$SUDO_USER:$SUDO_USER" "$ENVD_DIR"
 echo "✅ ntsync set as default Proton sync backend (takes effect after re-login)"
 echo "✅ DLSS auto-updater enabled for Proton games (takes effect after re-login)"
+echo "✅ MangoHud enabled globally for Proton games (takes effect after re-login)"
 
 #######################
 # RPG-Maker for linux wrapper
