@@ -156,6 +156,21 @@ flatpak install --or-update --assumeyes flathub \
     com.bitwarden.desktop
 
 #######################
+# Spicetify (themes the Flatpak Spotify)
+#######################
+
+# Spotify is the official Flathub Flatpak installed above; Spicetify themes it
+# (BurntSienna + ad-banner-hiding CSS). Install the CLI and Marketplace here as
+# the target user. The theme/config lives in dotfiles (~/.config/spicetify) and
+# is (re)applied by the `spicetify-reapply` script — required after every Spotify
+# update, which rebuilds the read-only Flatpak deployment and wipes the patch.
+# The installers' auto-apply may no-op on a fresh Flatpak (Spotify not launched
+# yet); that's expected, so don't let it halt the script.
+echo "🎵 Installing Spicetify (CLI + Marketplace)..."
+sudo -Hu "$SUDO_USER" bash -c 'curl -fsSL https://raw.githubusercontent.com/spicetify/cli/main/install.sh | sh' || true
+sudo -Hu "$SUDO_USER" bash -c 'curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | sh' || true
+
+#######################
 # Sunshine Installation
 #######################
 dnf copr enable lizardbyte/stable -y
@@ -186,6 +201,10 @@ fi
 
 # Install Rust components (as the target user)
 sudo -Hu "$SUDO_USER" "$USER_HOME/.cargo/bin/rustup" component add rustfmt clippy rust-analyzer rust-src rust-docs
+
+# Install Zed editor (into ~/.local/zed.app, symlinks ~/.local/bin/zed)
+echo "✏️  Installing Zed editor..."
+sudo -Hu "$SUDO_USER" bash -c 'curl -f https://zed.dev/install.sh | sh'
 
 #######################
 # Gaming Optimizations
