@@ -226,9 +226,24 @@ set_gamemode_ini_general() {
 set_gamemode_ini_general renice 10
 set_gamemode_ini_general softrealtime on
 
-# Load ntsync module at boot
+# Load ntsync module at boot (kernel side: exposes /dev/ntsync)
 echo ntsync | tee /etc/modules-load.d/ntsync.conf
 modprobe ntsync
+
+# Userspace side: make ntsync the default sync backend for ALL Proton games
+# (Steam + Heroic). Proton's launch script reads these beneath each launcher's
+# own esync/fsync toggles, so this wins without editing any per-game config.
+# Without this, esync/fsync take precedence and /dev/ntsync sits unused.
+ENVD_DIR="/home/$SUDO_USER/.config/environment.d"
+mkdir -p "$ENVD_DIR"
+cat > "$ENVD_DIR/ntsync.conf" <<'EOF'
+# Make ntsync the default sync backend for all Proton games (Steam + Heroic).
+PROTON_USE_NTSYNC=1
+PROTON_NO_ESYNC=1
+PROTON_NO_FSYNC=1
+EOF
+chown -R "$SUDO_USER:$SUDO_USER" "$ENVD_DIR"
+echo "✅ ntsync set as default Proton sync backend (takes effect after re-login)"
 
 #######################
 # RPG-Maker for linux wrapper
