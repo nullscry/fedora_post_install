@@ -119,6 +119,10 @@ dnf install -y \
     vim-enhanced \
     btop \
     lsd \
+    ripgrep \
+    tmux \
+    stow \
+    podman \
     steam \
     kitty \
     qbittorrent \
@@ -137,7 +141,6 @@ dnf install -y \
     kate \
     krita \
     syncthing \
-    discord \
     asusctl \
     keepassxc
 
@@ -169,7 +172,7 @@ USER_HOME="/home/$SUDO_USER"
 # Install UV package manager (as the target user, into their home)
 echo "📦 Installing UV package manager and Python tools..."
 sudo -Hu "$SUDO_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
-sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install ruff pre-commit twine basedpyright
+sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install ruff pre-commit basedpyright nsz
 
 # Install Rust (as the target user, into their home)
 echo "🦀 Installing Rust and development tools..."
