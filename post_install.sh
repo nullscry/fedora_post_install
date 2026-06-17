@@ -82,7 +82,7 @@ echo "🖥️ Detecting and installing GPU drivers..."
 
 if lspci | grep -i nvidia &>/dev/null; then
     echo "� NVIDIA GPU detected - Installing NVIDIA drivers and Flatpak runtime..."
-    
+
     # Enable tainted repos for NVIDIA drivers
     dnf install -y rpmfusion-nonfree-release-tainted
 
@@ -120,11 +120,11 @@ dnf install -y \
     btop \
     lsd \
     steam \
-    lutris \
     kitty \
     qbittorrent \
     vlc \
     libreoffice \
+    focuswriter \
     clementine \
     torbrowser-launcher \
     calibre \
@@ -148,7 +148,6 @@ flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flat
 # Install Flatpak applications
 flatpak install --or-update --assumeyes flathub \
     com.spotify.Client \
-    net.davidotek.pupgui2 \
     com.rafaelmardojai.Blanket \
     it.mijorus.gearlever \
     com.bitwarden.desktop
