@@ -284,8 +284,37 @@ echo "✅ DLSS auto-updater enabled for Proton games (takes effect after re-logi
 echo "✅ MangoHud enabled globally for Proton games (takes effect after re-login)"
 
 #######################
+# Steam ⇄ Heroic ProtonGE unification
+#######################
+
+# Make every GE-Proton that Heroic downloads appear in Steam automatically, with
+# zero per-version maintenance, by making Steam's custom-tools dir BE a symlink to
+# Heroic's proton dir:
+#   ~/.local/share/Steam/compatibilitytools.d  ->  ~/.config/heroic/tools/proton
+# Each GE version subdir ships its own compatibilitytool.vdf, so Heroic's proton
+# dir is already a valid compatibilitytools.d layout. Steam only scans the
+# *immediate* children of compatibilitytools.d (it won't recurse), so a single
+# nested symlink to the proton parent would NOT work — the whole dir must be the
+# symlink. Official Valve Proton lives in steamapps/common/ and is unaffected.
+echo "🔗 Linking Steam's compatibilitytools.d to Heroic's ProtonGE dir..."
+USER_HOME="/home/$SUDO_USER"
+HEROIC_PROTON="$USER_HOME/.config/heroic/tools/proton"
+STEAM_COMPAT="$USER_HOME/.local/share/Steam/compatibilitytools.d"
+sudo -Hu "$SUDO_USER" mkdir -p "$HEROIC_PROTON" "$(dirname "$STEAM_COMPAT")"
+if [ -e "$STEAM_COMPAT" ] && [ ! -L "$STEAM_COMPAT" ]; then
+    # A real dir already exists (e.g. Steam recreated it, or a prior custom tool
+    # was installed into it). Move any real tools into Heroic's dir so nothing is
+    # lost, then remove the now-redundant dir before symlinking.
+    find "$STEAM_COMPAT" -mindepth 1 -maxdepth 1 -exec mv -t "$HEROIC_PROTON" {} +
+    rmdir "$STEAM_COMPAT" 2>/dev/null || rm -rf "$STEAM_COMPAT"
+fi
+sudo -Hu "$SUDO_USER" ln -sfn "$HEROIC_PROTON" "$STEAM_COMPAT"
+
+#######################
 # RPG-Maker for linux wrapper
 #######################
+# Installs into Steam's compatibilitytools.d — which is now the symlink above, so
+# the wrapper lands in Heroic's proton dir alongside the GE versions (unified).
 echo "🎲 Installing RPG-Maker for Linux wrapper..."
 wget -qO- "https://raw.githubusercontent.com/bakustarver/rpgmakermlinux-cicpoffs/main/installgithub.sh" | bash
 
