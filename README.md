@@ -12,11 +12,26 @@ This repo only handles the **system-level** bootstrap. Personal dotfiles (shell,
 
 ## What this does
 
-- `post_install.sh` — installs RPM Fusion, multimedia codecs, GPU drivers, gaming stack (Steam / Wine / GameMode / MangoHUD), development tools (uv, rustup), Sunshine, fonts, Starship, sets Quad9 DNS, applies hardware-specific fixes (MT7922 wifi, Logitech MX Vertical button remap via logiops), and a few KDE cleanups.
+- `post_install.sh` — installs RPM Fusion, multimedia codecs, GPU drivers, gaming stack (Steam / Wine / GameMode / MangoHUD), development tools (uv, rustup), Sunshine, fonts, Starship, sets up Quad9 DNS-over-TLS, applies hardware-specific fixes (MT7922 wifi, Logitech MX Vertical button remap via logiops, ASUS fan curves), and a few KDE cleanups.
 - `etc/dnf/dnf.conf` — sane DNF defaults copied to `/etc/dnf/`.
 - `etc/logid.cfg` — logiops config; remaps the MX Vertical's firmware-trapped top DPI button to `F12` via uinput.
+- `etc/systemd/resolved.conf.d/10-dns-over-tls.conf` — sends all DNS to Quad9 over TLS through systemd-resolved.
 - `etc/udev/rules.d/99-logid-rebind.rules` — restarts `logid` when the MX Vertical wakes from deep sleep, so the DPI→F12 remap survives reconnects (logiops drops the binding otherwise).
+- `etc/udev/rules.d/61-drm-gpu-names.rules` — stable `/dev/dri/nvidia-dgpu` / `/dev/dri/amd-igpu` names on hybrid laptops (for picking KWin's GPU via `KWIN_DRM_DEVICES`).
+- `etc/udev/rules.d/50-usb-ethernet-autosuspend.rules` — keeps an AX88179 USB Ethernet dongle from autosuspending.
+- `extras/zapret/` — optional Discord DPI-unblock config, see below.
 - `install.sh` — thin wrapper that copies `etc/` and runs `post_install.sh`.
+
+### Optional extras
+
+Off by default; enable with environment variables:
+
+```bash
+sudo WITH_OLLAMA=1 WITH_ZAPRET=1 ./install.sh
+```
+
+- `WITH_OLLAMA=1` — installs [Ollama](https://ollama.com) (local LLM server).
+- `WITH_ZAPRET=1` — installs [zapret](https://github.com/bol-van/zapret) with the config in `extras/zapret/` to get around ISP DPI blocking of Discord. See `extras/zapret/README.md`.
 
 The dnf and flatpak package lists live in `post_install.sh` under the `Software Installation` section.
 

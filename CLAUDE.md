@@ -8,14 +8,33 @@ the separate `~/dev/dotfiles` repo (GNU Stow; see its `dotfiles` skill).
 ## Layout
 - `post_install.sh` — the real work (~12 KB). RPM Fusion, multimedia codecs, GPU
   drivers, gaming stack (Steam/Wine/GameMode/MangoHUD), dev tools (uv, rustup),
-  Sunshine, fonts, Starship, Quad9 DNS, hardware fixes (MT7922 wifi, Logitech
-  MX Vertical button remap via logiops), KDE cleanups. The dnf + flatpak
-  package lists live under its "Software Installation" section.
+  Sunshine, fonts, Starship, Quad9 DNS-over-TLS, hardware fixes (MT7922 wifi,
+  Logitech MX Vertical button remap via logiops, ASUS Performance fan curve),
+  KDE cleanups. The dnf + flatpak package lists live under its "Software
+  Installation" section. Opt-in extras via env vars: `WITH_OLLAMA=1`,
+  `WITH_ZAPRET=1`.
 - `install.sh` — thin wrapper: copies `etc/` into `/etc/`, then runs
-  `post_install.sh`. Entry point: `sudo ./install.sh`.
+  `post_install.sh`. Entry point: `sudo ./install.sh`. Anything under `etc/`
+  is copied blindly, so files that only belong on some machines go in
+  `extras/` and get installed by an opt-in section instead.
 - `etc/dnf/dnf.conf` — DNF defaults dropped into `/etc/`.
 - `etc/logid.cfg` — logiops config: MX Vertical top DPI button (CID 0xFD) →
   `F12` via uinput (firmware-trapped, so Solaar/XTEST can't reach games).
+- `etc/udev/rules.d/` — logid rebind-on-wake, stable GPU names for the
+  dotfiles `kwin-gpu` script, AX88179 dongle autosuspend off.
+- `etc/systemd/resolved.conf.d/` — Quad9 DoT (replaced the old NetworkManager
+  global-dns setup).
+- `extras/zapret/` — zapret config + Discord hostlist (memory
+  `project_discord_zapret_dot`).
+- Kept elsewhere on purpose: the OctoWoW TTL nftables rule is managed by the
+  dotfiles `octowow ttl on`; MangoHud is opt-in per game (the script writes a
+  commented-out `MANGOHUD=1`).
+
+## Keeping it in sync
+Last full sweep vs the live system: 2026-10-18. To re-check, compare
+`dnf repoquery --userinstalled`, `flatpak list --app`, `/etc/udev/rules.d`,
+`/etc/modprobe.d`, `~/.config/environment.d` and enabled services against the
+script.
 
 ## Working in this repo
 - This is the canonical home for "how do I get from clean Fedora to my setup" —
