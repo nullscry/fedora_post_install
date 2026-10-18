@@ -1,0 +1,3 @@
+# Keep the ASIX AX88179 USB 3 Ethernet dongle (0b95:1790) awake. With USB
+# autosuspend on it drops the link after idle and has to renegotiate.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0b95", ATTR{idProduct}=="1790", ATTR{power/autosuspend}="-1"

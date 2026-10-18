@@ -1,0 +1,5 @@
+# Stable colon-free names for the two GPUs, for KWIN_DRM_DEVICES
+# (colon-separated, so /dev/dri/by-path/pci-0000:... can't be used and
+# card0/card1 can swap between boots). See ~/.local/bin/kwin-gpu.
+SUBSYSTEM=="drm", KERNEL=="card[0-9]", DRIVERS=="nvidia", SYMLINK+="dri/nvidia-dgpu"
+SUBSYSTEM=="drm", KERNEL=="card[0-9]", DRIVERS=="amdgpu", SYMLINK+="dri/amd-igpu"
