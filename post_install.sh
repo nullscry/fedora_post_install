@@ -21,11 +21,9 @@ dnf install -y \
 echo "🎥 Setting up multimedia support..."
 # Basic multimedia packages
 dnf install -y fuse
-# dnf4 used here: dnf5's group install for 'multimedia' was unreliable
-# during the F42/F43 transition. Revisit once F44+ is the baseline.
-dnf4 group install multimedia
-dnf swap 'ffmpeg-free' 'ffmpeg' --allowerasing
-dnf upgrade @multimedia --setopt="install_weak_deps=False"
+dnf group install -y multimedia
+dnf swap -y 'ffmpeg-free' 'ffmpeg' --allowerasing
+dnf upgrade -y @multimedia --setopt="install_weak_deps=False" --exclude=PackageKit-gstreamer-plugin
 dnf group install -y sound-and-video
 
 # Install comprehensive codec support
@@ -86,18 +84,24 @@ if lspci | grep -i nvidia &>/dev/null; then
     # Enable tainted repos for NVIDIA drivers
     dnf install -y rpmfusion-nonfree-release-tainted
 
-    # Install NVIDIA drivers (open kernel modules by default)
+    # Install NVIDIA drivers. Plain akmod-nvidia builds the open kernel module
+    # automatically on Turing and newer GPUs (RTX 20xx+), so akmod-nvidia-open
+    # isn't needed. xorg-x11-drv-nvidia-power provides the suspend/resume
+    # services that save VRAM across sleep.
     dnf install -y \
-        akmod-nvidia-open \
+        akmod-nvidia \
         xorg-x11-drv-nvidia \
         xorg-x11-drv-nvidia-cuda \
+        xorg-x11-drv-nvidia-power \
         nvidia-settings
+    systemctl enable nvidia-suspend.service nvidia-resume.service nvidia-hibernate.service
 
-    # Blacklist nouveau and enable NVIDIA DRM modeset
-    grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau modprobe.blacklist=nouveau nvidia-drm.modeset=1"
+    # Blacklist nouveau and nova_core (the newer in-kernel NVIDIA driver) and
+    # enable NVIDIA DRM modeset
+    grubby --update-kernel=ALL --args="rd.driver.blacklist=nouveau,nova_core modprobe.blacklist=nouveau,nova_core nvidia-drm.modeset=1"
 
     # Get NVIDIA driver version from installed package
-    version=$(dnf repoquery --installed --qf '%{version}' akmod-nvidia-open | cut -d. -f1-2 | tr . -)
+    version=$(dnf repoquery --installed --qf '%{version}' akmod-nvidia | cut -d. -f1-2 | tr . -)
     echo "🧩 Installing Flatpak NVIDIA driver version: $version"
     flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
     flatpak install -y flathub "org.freedesktop.Platform.GL.nvidia-$version"
@@ -113,9 +117,39 @@ fi
 # Software Installation
 #######################
 
+echo "📦 Adding extra repositories (asusctl, FocusWriter)..."
+# asusctl / asusd (ASUS laptop profiles, fan curves, keyboard LEDs)
+dnf copr enable -y lukenukem/asus-linux
+# FocusWriter upstream builds (Fedora's own package lags behind)
+dnf config-manager addrepo --overwrite --from-repofile="https://download.opensuse.org/repositories/home:/gottcode/Fedora_$(rpm -E %fedora)/home:gottcode.repo"
+
 echo "📦 Installing system applications..."
 # System packages
 dnf install -y \
+    ksshaskpass \
+    evtest \
+    compsize \
+    unrar \
+    mtr \
+    tcpdump \
+    clamav \
+    android-tools \
+    golang \
+    nodejs \
+    mingw32-gcc \
+    chromium \
+    thunderbird \
+    kio-gdrive \
+    ardour8 \
+    fluidsynth \
+    beets \
+    picard \
+    kid3 \
+    chromaprint-tools \
+    python3-acoustid \
+    easyrpg-player \
+    liblcf-tools \
+    openmw \
     vim-enhanced \
     btop \
     lsd \
@@ -144,6 +178,17 @@ dnf install -y \
     asusctl \
     keepassxc
 
+# OpenTabletDriver isn't packaged for Fedora; install the upstream RPM.
+# The user service still has to be enabled as the user after login:
+#   systemctl --user enable --now opentabletdriver.service
+echo "✏️  Installing OpenTabletDriver..."
+OTD_RPM=$(curl -fsSL https://api.github.com/repos/OpenTabletDriver/OpenTabletDriver/releases/latest | grep -o 'https://[^"]*x86_64\.rpm' | head -1)
+if [ -n "$OTD_RPM" ]; then
+    dnf install -y "$OTD_RPM"
+else
+    echo "⚠️  Couldn't find the OpenTabletDriver RPM, skipping."
+fi
+
 echo "📱 Installing Flatpak applications..."
 # Ensure Flathub is available
 flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -151,6 +196,9 @@ flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flat
 # Install Flatpak applications
 flatpak install --or-update --assumeyes flathub \
     com.spotify.Client \
+    com.discordapp.Discord \
+    org.jellyfin.JellyfinDesktop \
+    com.snes9x.Snes9x \
     com.rafaelmardojai.Blanket \
     it.mijorus.gearlever \
     com.bitwarden.desktop
@@ -270,18 +318,23 @@ cat > "$ENVD_DIR/dlss.conf" <<'EOF'
 # be enabled in each game's own graphics menu.
 PROTON_ENABLE_NGX_UPDATER=1
 EOF
+# MangoHud is opt-in, NOT session-wide. Loading its Vulkan layer into every app
+# crashed too much on a hybrid AMD+NVIDIA laptop (Heroic's Electron NVML
+# double-free, Clementine's gstvulkan plugin deadlock, GLX games under NVIDIA
+# offload). Set MANGOHUD=1 per game in Steam launch options / Heroic env instead.
 cat > "$ENVD_DIR/mangohud.conf" <<'EOF'
-# Load MangoHud's Vulkan layer into every Vulkan app in the session (covers all
-# Proton games in Steam + Heroic with no per-game setup). The overlay starts
-# hidden and the blacklist for non-game apps live in ~/.config/MangoHud/
-# MangoHud.conf (tracked in the dotfiles repo). Toggle overlay Shift_R+F12,
-# cycle FPS cap Shift_L+F1.
-MANGOHUD=1
+# Global MangoHud injection is DISABLED: the session-wide Vulkan layer crashed
+# too many non-game apps on this hybrid GPU. Set MANGOHUD=1 per game (Steam
+# launch options or Heroic per-game env) when you want the overlay / FPS cap.
+# To restore session-wide injection, uncomment the line below and re-login.
+# Overlay starts hidden (no_display=1 in MangoHud.conf, dotfiles repo).
+# Toggle overlay Shift_R+F12, cycle FPS cap Shift_L+F1.
+#MANGOHUD=1
 EOF
 chown -R "$SUDO_USER:$SUDO_USER" "$ENVD_DIR"
 echo "✅ ntsync set as default Proton sync backend (takes effect after re-login)"
 echo "✅ DLSS auto-updater enabled for Proton games (takes effect after re-login)"
-echo "✅ MangoHud enabled globally for Proton games (takes effect after re-login)"
+echo "✅ MangoHud left opt-in (set MANGOHUD=1 per game)"
 
 #######################
 # Steam ⇄ Heroic ProtonGE unification
@@ -402,6 +455,73 @@ else
 fi
 
 #######################
+# Other udev rules
+#######################
+# install.sh deploys etc/udev/rules.d/: 50-usb-ethernet-autosuspend.rules (keeps
+# the AX88179 USB Ethernet dongle from dropping the link) and 61-drm-gpu-names.rules
+# (stable /dev/dri/nvidia-dgpu and /dev/dri/amd-igpu names, used by the dotfiles
+# `kwin-gpu` script to pick which GPU KWin runs on). Both are no-ops without that hardware.
+udevadm control --reload-rules && udevadm trigger --subsystem-match=usb --subsystem-match=drm
+
+#######################
+# ASUS fan curves
+#######################
+# The TUF chassis is cooling-limited: on the stock curves the RTX 4060 sits at
+# its 87°C throttle point in UE5 games, and sustained LLM inference once hit the
+# thermal cutoff. Give the Performance profile a steep curve (fans at 100% from
+# 80°C). Balanced/Quiet keep the firmware defaults. Values are 0-255 PWM.
+if grep -qi "asus" /sys/class/dmi/id/sys_vendor 2>/dev/null && command -v asusctl &>/dev/null; then
+    echo "🌀 Setting a steep fan curve on the ASUS Performance profile..."
+    systemctl enable --now asusd || true
+    FAN_CURVE="30c:64,50c:115,60c:153,70c:191,75c:230,80c:255,85c:255,99c:255"
+    asusctl fan-curve -m performance -f cpu -D "$FAN_CURVE" || true
+    asusctl fan-curve -m performance -f gpu -D "$FAN_CURVE" || true
+    asusctl fan-curve -m performance -e true || true
+else
+    echo "🌀 Not an ASUS laptop (or no asusctl), skipping fan curves."
+fi
+
+#######################
+# Optional extras (off by default)
+#######################
+# Turn these on with env vars, e.g.  sudo WITH_OLLAMA=1 WITH_ZAPRET=1 ./install.sh
+
+# Ollama: local LLM server (installs to /usr/local/bin + ollama.service).
+# On a cooling-limited laptop, cap the GPU before long runs or it can overheat
+# and shut down:  sudo nvidia-smi -pl 45  (resets at reboot), and use the
+# Performance profile so the fan curve above applies.
+if [ "${WITH_OLLAMA:-0}" = "1" ]; then
+    echo "🦙 Installing Ollama..."
+    curl -fsSL https://ollama.com/install.sh | sh
+fi
+
+# zapret: gets around SNI-based DPI blocking of Discord (Turkey). Uses the
+# config + Discord-only hostlist in extras/zapret/ (see its README for what to do
+# when the ISP changes the block).
+if [ "${WITH_ZAPRET:-0}" = "1" ]; then
+    echo "🛡️  Installing zapret (Discord unblock)..."
+    REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    ZAPRET_URL=$(curl -fsSL https://api.github.com/repos/bol-van/zapret/releases/latest | grep -o 'https://[^"]*/zapret-v[0-9.]*\.tar\.gz' | head -1)
+    ZTMP=$(mktemp -d)
+    curl -fsSL "$ZAPRET_URL" | tar -xz -C "$ZTMP"
+    rm -rf /opt/zapret
+    mv "$ZTMP"/zapret-v* /opt/zapret
+    rm -rf "$ZTMP"
+    /opt/zapret/install_bin.sh
+    install -m 644 "$REPO_DIR/extras/zapret/config" /opt/zapret/config
+    install -m 644 "$REPO_DIR/extras/zapret/zapret-hosts-user.txt" /opt/zapret/ipset/zapret-hosts-user.txt
+    install -m 644 /opt/zapret/init.d/systemd/zapret.service /etc/systemd/system/zapret.service
+    # Files moved in from /tmp keep the wrong SELinux label and the service
+    # fails to start until they're relabelled.
+    restorecon -R /opt/zapret /etc/systemd/system/zapret.service
+    systemctl daemon-reload
+    systemctl enable --now zapret.service
+fi
+
+# OctoWoW (private WoW server) players: its network filter drops Linux's default
+# TTL of 64. That fix lives in the dotfiles `octowow` script: run `octowow ttl on`.
+
+#######################
 # Visual Customization
 #######################
 
@@ -467,26 +587,15 @@ dnf upgrade -y --refresh
 flatpak update -y
 
 #######################
-# Quad9 DNS Setup
+# Quad9 DNS-over-TLS
 #######################
-echo "🌐 Setting up Quad9 DNS servers for enhanced privacy and security..."
-# System-wide Quad9 DNS setup for Fedora (NetworkManager)
-
-# 1. Create main config to ensure NetworkManager handles DNS itself
-tee /etc/NetworkManager/conf.d/dns.conf > /dev/null <<'EOF'
-[main]
-dns=default
-EOF
-
-# 2. Create global DNS config file with Quad9 servers
-tee /etc/NetworkManager/conf.d/90-dns-servers.conf > /dev/null <<'EOF'
-[global-dns]
-servers=9.9.9.9,149.112.112.112
-EOF
-
-# 3. Restart NetworkManager to apply changes
-echo "Restarting NetworkManager..."
-systemctl restart NetworkManager
+# All DNS goes to Quad9 over TLS (port 853, certificate-checked) through
+# systemd-resolved. The drop-in is etc/systemd/resolved.conf.d/10-dns-over-tls.conf,
+# deployed by install.sh; `Domains=~.` makes it win over the DHCP/ISP servers.
+# Captive portals (hotel/airport wifi) can't be reached with this on: move the
+# drop-in aside and restart systemd-resolved to log in, then put it back.
+echo "🌐 Enabling Quad9 DNS-over-TLS via systemd-resolved..."
+systemctl restart systemd-resolved
 
 #######################
 # Final Instructions
