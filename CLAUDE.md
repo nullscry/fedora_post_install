@@ -12,7 +12,13 @@ the separate `~/dev/dotfiles` repo (GNU Stow; see its `dotfiles` skill).
   Logitech MX Vertical button remap via logiops, ASUS Performance fan curve),
   KDE cleanups. The dnf + flatpak package lists live under its "Software
   Installation" section. Opt-in extras via env vars: `WITH_OLLAMA=1`,
-  `WITH_ZAPRET=1`.
+  `WITH_ZAPRET=1`, `WITH_AMD_OVERDRIVE=1`.
+- Two machines run it: the ASUS TUF laptop (`nullscry-tuf`) and the desktop
+  (`nullscry-desktop`, 7800X3D + RX 9070, ordered 2026-10-19). `PROFILE` is
+  auto-detected from `/sys/class/dmi/id/chassis_type` (override
+  `PROFILE=laptop|desktop`); only ASUS tooling is gated on it, every other
+  hardware step checks for its own device. Don't add a desktop/laptop branch
+  for something that can be detected.
 - `install.sh` — thin wrapper: copies `etc/` into `/etc/`, then runs
   `post_install.sh`. Entry point: `sudo ./install.sh`. Anything under `etc/`
   is copied blindly, so files that only belong on some machines go in

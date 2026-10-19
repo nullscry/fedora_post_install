@@ -22,6 +22,18 @@ This repo only handles the **system-level** bootstrap. Personal dotfiles (shell,
 - `extras/zapret/` — optional Discord DPI-unblock config, see below.
 - `install.sh` — thin wrapper that copies `etc/` and runs `post_install.sh`.
 
+### Laptop vs desktop
+
+The same script runs on both. It reads the machine type from the firmware (chassis type) and you can override it with `PROFILE=laptop|desktop`. Each hardware step also checks for its own device:
+
+| Step | Runs when |
+| --- | --- |
+| NVIDIA driver + nouveau blacklist | an NVIDIA GPU is present |
+| LACT (AMD GPU control panel) + nvtop | a discrete AMD Radeon ("Navi") is present |
+| asusctl + Performance fan curve | ASUS laptop |
+| MT7922 wifi fixes | the `mt7921e` driver is in use |
+| logiops | a Logitech device is plugged in |
+
 ### Optional extras
 
 Off by default; enable with environment variables:
@@ -31,6 +43,7 @@ sudo WITH_OLLAMA=1 WITH_ZAPRET=1 ./install.sh
 ```
 
 - `WITH_OLLAMA=1` — installs [Ollama](https://ollama.com) (local LLM server).
+- `WITH_AMD_OVERDRIVE=1` — adds `amdgpu.ppfeaturemask=0xffffffff` to the kernel cmdline so LACT can undervolt/overclock a Radeon (fan curve and power limit work without it). Taints the kernel.
 - `WITH_ZAPRET=1` — installs [zapret](https://github.com/bol-van/zapret) with the config in `extras/zapret/` to get around ISP DPI blocking of Discord. See `extras/zapret/README.md`.
 
 The dnf and flatpak package lists live in `post_install.sh` under the `Software Installation` section.

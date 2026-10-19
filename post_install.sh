@@ -6,6 +6,25 @@ set -e
 echo "🚀 Starting Fedora Post-Installation Setup..."
 
 #######################
+# Machine profile
+#######################
+# laptop or desktop, read from the firmware's chassis type (SMBIOS: 8/9/10/14/
+# 30/31/32 are portables). Override with PROFILE=laptop|desktop. Most hardware
+# steps below also check for their own device, so this only gates the ones
+# that can't (ASUS laptop tooling).
+if [ -z "${PROFILE:-}" ]; then
+    case "$(cat /sys/class/dmi/id/chassis_type 2>/dev/null)" in
+        8|9|10|11|14|30|31|32) PROFILE=laptop ;;
+        *) PROFILE=desktop ;;
+    esac
+fi
+IS_ASUS_LAPTOP=0
+if [ "$PROFILE" = "laptop" ] && grep -qi "asus" /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+    IS_ASUS_LAPTOP=1
+fi
+echo "🖥️  Profile: $PROFILE (ASUS laptop: $IS_ASUS_LAPTOP)"
+
+#######################
 # Repository Setup
 #######################
 
@@ -79,7 +98,7 @@ dnf install -y \
 echo "🖥️ Detecting and installing GPU drivers..."
 
 if lspci | grep -i nvidia &>/dev/null; then
-    echo "� NVIDIA GPU detected - Installing NVIDIA drivers and Flatpak runtime..."
+    echo "🟩 NVIDIA GPU detected - Installing NVIDIA drivers and Flatpak runtime..."
 
     # Enable tainted repos for NVIDIA drivers
     dnf install -y rpmfusion-nonfree-release-tainted
@@ -109,17 +128,39 @@ if lspci | grep -i nvidia &>/dev/null; then
 
     # NVIDIA GPU hardware acceleration
     dnf install -y libva-nvidia-driver
-else
-    echo "🖥️ AMD/Intel GPU detected - No additional drivers needed"
+fi
+
+# Discrete AMD Radeon (RDNA "Navi", e.g. RX 9070). Mesa ships the driver
+# (amdgpu + RADV), so nothing is needed to make it work; this adds tooling.
+# AMD integrated graphics (Strix, Raphael, ...) don't match "Navi" and skip it.
+if lspci | grep -iE 'VGA|Display|3D' | grep -i 'AMD/ATI' | grep -qi 'Navi'; then
+    echo "🟥 Discrete AMD GPU detected - installing LACT and monitoring tools..."
+    # LACT: GPU control panel (fan curve, power limit, clocks/undervolt, stats).
+    # Not in Fedora's repos; upstream publishes it on COPR.
+    dnf copr enable -y ilyaz/LACT
+    dnf install -y lact nvtop
+    systemctl enable --now lactd
+
+    # Undervolting/overclocking in LACT needs the amdgpu overdrive bit on the
+    # kernel cmdline (fan curve and power limit work without it). It marks the
+    # kernel as tainted, so it's opt-in.
+    if [ "${WITH_AMD_OVERDRIVE:-0}" = "1" ]; then
+        grubby --update-kernel=ALL --args="amdgpu.ppfeaturemask=0xffffffff"
+    fi
+elif ! lspci | grep -qi nvidia; then
+    echo "🖥️ Integrated AMD/Intel GPU only - no additional drivers needed"
 fi
 
 #######################
 # Software Installation
 #######################
 
-echo "📦 Adding extra repositories (asusctl, FocusWriter)..."
+echo "📦 Adding extra repositories..."
 # asusctl / asusd (ASUS laptop profiles, fan curves, keyboard LEDs)
-dnf copr enable -y lukenukem/asus-linux
+if [ "$IS_ASUS_LAPTOP" = "1" ]; then
+    dnf copr enable -y lukenukem/asus-linux
+    dnf install -y asusctl
+fi
 # FocusWriter upstream builds (Fedora's own package lags behind)
 dnf config-manager addrepo --overwrite --from-repofile="https://download.opensuse.org/repositories/home:/gottcode/Fedora_$(rpm -E %fedora)/home:gottcode.repo"
 
@@ -175,7 +216,6 @@ dnf install -y \
     kate \
     krita \
     syncthing \
-    asusctl \
     keepassxc
 
 # OpenTabletDriver isn't packaged for Fedora; install the upstream RPM.
@@ -470,7 +510,7 @@ udevadm control --reload-rules && udevadm trigger --subsystem-match=usb --subsys
 # its 87°C throttle point in UE5 games, and sustained LLM inference once hit the
 # thermal cutoff. Give the Performance profile a steep curve (fans at 100% from
 # 80°C). Balanced/Quiet keep the firmware defaults. Values are 0-255 PWM.
-if grep -qi "asus" /sys/class/dmi/id/sys_vendor 2>/dev/null && command -v asusctl &>/dev/null; then
+if [ "$IS_ASUS_LAPTOP" = "1" ] && command -v asusctl &>/dev/null; then
     echo "🌀 Setting a steep fan curve on the ASUS Performance profile..."
     systemctl enable --now asusd || true
     FAN_CURVE="30c:64,50c:115,60c:153,70c:191,75c:230,80c:255,85c:255,99c:255"
@@ -487,6 +527,7 @@ fi
 # Turn these on with env vars, e.g.  sudo WITH_OLLAMA=1 WITH_ZAPRET=1 ./install.sh
 
 # Ollama: local LLM server (installs to /usr/local/bin + ollama.service).
+# The installer detects an AMD Radeon and pulls its ROCm build itself.
 # On a cooling-limited laptop, cap the GPU before long runs or it can overheat
 # and shut down:  sudo nvidia-smi -pl 45  (resets at reboot), and use the
 # Performance profile so the fan curve above applies.
