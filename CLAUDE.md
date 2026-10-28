@@ -28,6 +28,8 @@ the separate `~/dev/dotfiles` repo (GNU Stow; see its `dotfiles` skill).
   `F12` via uinput (firmware-trapped, so Solaar/XTEST can't reach games).
 - `etc/udev/rules.d/` — logid rebind-on-wake, stable GPU names for the
   dotfiles `kwin-gpu` script, AX88179 dongle autosuspend off.
+- `etc/sysctl.d/99-split-lock.conf` — `kernel.split_lock_mitigate=0` (split-lock
+  penalty causes stutter in some Proton games; SteamOS/Bazzite default).
 - `etc/systemd/resolved.conf.d/` — Quad9 DoT (replaced the old NetworkManager
   global-dns setup).
 - `extras/zapret/` — zapret config + Discord hostlist (memory
