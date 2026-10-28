@@ -62,7 +62,13 @@ dnf install -y \
 # Stock mesa-va-drivers removes H.264/HEVC encode (only AV1 remains), which
 # breaks VAAPI hardware encoding on AMD/Intel iGPUs — Sunshine then silently
 # falls back to software x264. Requires RPM Fusion (enabled above).
-dnf swap -y mesa-va-drivers mesa-va-drivers-freeworld --allowerasing
+# Fedora 44 folded mesa-va-drivers into mesa-dri-drivers, so swapping would
+# remove the whole Mesa stack; there the freeworld package installs alongside.
+if rpm -q mesa-va-drivers >/dev/null 2>&1; then
+    dnf swap -y mesa-va-drivers mesa-va-drivers-freeworld --allowerasing
+else
+    dnf install -y mesa-va-drivers-freeworld
+fi
 
 # Enable Cisco's OpenH264 repository
 dnf config-manager setopt fedora-cisco-openh264.enabled=1
@@ -161,8 +167,9 @@ if [ "$IS_ASUS_LAPTOP" = "1" ]; then
     dnf copr enable -y lukenukem/asus-linux
     dnf install -y asusctl
 fi
-# FocusWriter upstream builds (Fedora's own package lags behind)
-dnf config-manager addrepo --overwrite --from-repofile="https://download.opensuse.org/repositories/home:/gottcode/Fedora_$(rpm -E %fedora)/home:gottcode.repo"
+# FocusWriter comes from Fedora's own repo. The upstream OBS repo
+# (home:gottcode) was dropped on 2026-10-24: Fedora had caught up (1.9.1) and
+# the OBS build of 1.9.1-1.2 failed its signature check against the repo key.
 
 echo "📦 Installing system applications..."
 # System packages
@@ -212,11 +219,15 @@ dnf install -y \
     godot \
     inkscape \
     lmms \
-    easyeffects \
     kate \
     krita \
     syncthing \
     keepassxc
+
+# EasyEffects only on the laptop: its presets are the laptop-speaker fix.
+if [ "$PROFILE" = "laptop" ]; then
+    dnf install -y easyeffects
+fi
 
 # OpenTabletDriver isn't packaged for Fedora; install the upstream RPM.
 # The user service still has to be enabled as the user after login:
@@ -256,7 +267,8 @@ flatpak install --or-update --assumeyes flathub \
 # yet); that's expected, so don't let it halt the script.
 echo "🎵 Installing Spicetify (CLI + Marketplace)..."
 sudo -Hu "$SUDO_USER" bash -c 'curl -fsSL https://raw.githubusercontent.com/spicetify/cli/main/install.sh | sh' || true
-sudo -Hu "$SUDO_USER" bash -c 'curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | sh' || true
+# The CLI lands in ~/.spicetify, not yet on PATH here; the Marketplace installer calls it.
+sudo -Hu "$SUDO_USER" bash -c 'export PATH="$HOME/.spicetify:$PATH"; curl -fsSL https://raw.githubusercontent.com/spicetify/marketplace/main/resources/install.sh | sh' || true
 
 #######################
 # Sunshine Installation
@@ -275,7 +287,10 @@ USER_HOME="/home/$SUDO_USER"
 # Install UV package manager (as the target user, into their home)
 echo "📦 Installing UV package manager and Python tools..."
 sudo -Hu "$SUDO_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh'
-sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install ruff pre-commit basedpyright nsz
+# One package per call: newer uv rejects several in one "tool install".
+for tool in ruff pre-commit basedpyright nsz; do
+    sudo -Hu "$SUDO_USER" "$USER_HOME/.local/bin/uv" tool install "$tool"
+done
 
 # Install Rust (as the target user, into their home)
 echo "🦀 Installing Rust and development tools..."
@@ -358,23 +373,55 @@ cat > "$ENVD_DIR/dlss.conf" <<'EOF'
 # be enabled in each game's own graphics menu.
 PROTON_ENABLE_NGX_UPDATER=1
 EOF
-# MangoHud is opt-in, NOT session-wide. Loading its Vulkan layer into every app
-# crashed too much on a hybrid AMD+NVIDIA laptop (Heroic's Electron NVML
-# double-free, Clementine's gstvulkan plugin deadlock, GLX games under NVIDIA
-# offload). Set MANGOHUD=1 per game in Steam launch options / Heroic env instead.
+# Desktop (RX 9070, RDNA4): GE-Proton extras for all Proton games (what the
+# laptop's pge wrapper flags did, minus the NVIDIA parts).
+if [ "$PROFILE" = "desktop" ]; then
+cat > "$ENVD_DIR/proton-amd.conf" <<'EOF'
+# GE-Proton extras for all Proton games (Steam + Heroic), desktop only.
+# Wine's native Wayland driver; open games on the G27Q2.
+PROTON_ENABLE_WAYLAND=1
+PROTON_WAYLAND_MONITOR=DP-3
+# Let games offer HDR (only does anything while HDR is on in KDE).
+PROTON_ENABLE_HDR=1
+# Swap FSR 3.1 in games for FSR 4 (RDNA4 runs it on its AI cores).
+PROTON_FSR4_UPGRADE=1
+# Hide the CPU's built-in Radeon 610M so games can't pick it over the 9070.
+PROTON_HIDE_APU=1
+# Per-game shader cache in the prefix (10 GB cap) instead of Mesa's shared 1 GB.
+PROTON_LOCAL_SHADER_CACHE=1
+EOF
+fi
+# MangoHud: session-wide on the desktop, opt-in on the laptop. On the hybrid
+# AMD+NVIDIA laptop the session-wide Vulkan layer crashed non-game apps
+# (Heroic's Electron NVML double-free, Clementine's gstvulkan deadlock, GLX
+# games under NVIDIA offload). The AMD-only desktop has none of that; the
+# overlay starts hidden (no_display=1) and MangoHud.conf's blacklist keeps it
+# out of Steam/Heroic/editors. MANGOHUD_CONFIG adds this machine's GPU on top
+# of the shared MangoHud.conf (read_cfg), whose pci_dev is the laptop's.
+if [ "$PROFILE" = "desktop" ]; then
+DGPU=$(lspci -D -d 1002: | grep -iE 'vga|display' | grep -i navi | head -1 | cut -d' ' -f1)
+cat > "$ENVD_DIR/mangohud.conf" <<EOF
+# MangoHud in every Vulkan game (Steam + Heroic), overlay hidden until toggled:
+# Shift_R+Home, or Create + R3 on a controller (mangohud-pad user service).
+# The colons in pci_dev must stay escaped: MangoHud splits options on ':' too.
+MANGOHUD=1
+MANGOHUD_CONFIG='read_cfg,pci_dev=${DGPU//:/\\:}'
+EOF
+else
 cat > "$ENVD_DIR/mangohud.conf" <<'EOF'
 # Global MangoHud injection is DISABLED: the session-wide Vulkan layer crashed
 # too many non-game apps on this hybrid GPU. Set MANGOHUD=1 per game (Steam
 # launch options or Heroic per-game env) when you want the overlay / FPS cap.
 # To restore session-wide injection, uncomment the line below and re-login.
 # Overlay starts hidden (no_display=1 in MangoHud.conf, dotfiles repo).
-# Toggle overlay Shift_R+F12, cycle FPS cap Shift_L+F1.
+# Toggle overlay Shift_R+Home, cycle FPS cap Shift_L+F1.
 #MANGOHUD=1
 EOF
+fi
 chown -R "$SUDO_USER:$SUDO_USER" "$ENVD_DIR"
 echo "✅ ntsync set as default Proton sync backend (takes effect after re-login)"
 echo "✅ DLSS auto-updater enabled for Proton games (takes effect after re-login)"
-echo "✅ MangoHud left opt-in (set MANGOHUD=1 per game)"
+echo "✅ MangoHud: session-wide on the desktop, opt-in on the laptop (takes effect after re-login)"
 
 #######################
 # Steam ⇄ Heroic ProtonGE unification
@@ -409,7 +456,9 @@ sudo -Hu "$SUDO_USER" ln -sfn "$HEROIC_PROTON" "$STEAM_COMPAT"
 # Installs into Steam's compatibilitytools.d — which is now the symlink above, so
 # the wrapper lands in Heroic's proton dir alongside the GE versions (unified).
 echo "🎲 Installing RPG-Maker for Linux wrapper..."
-wget -qO- "https://raw.githubusercontent.com/bakustarver/rpgmakermlinux-cicpoffs/main/installgithub.sh" | bash
+# Run from / : wget2 2.3.0 (Fedora 44) drops the leading slash of the installer's
+# "wget -P /tmp/", saving into the current directory; from / that is /tmp anyway.
+(cd / && wget -qO- "https://raw.githubusercontent.com/bakustarver/rpgmakermlinux-cicpoffs/main/installgithub.sh" | bash)
 
 #######################
 # Configure Steam, Steam Input and Gamescope
@@ -447,7 +496,8 @@ if lspci -v 2>/dev/null | grep -A 10 Network | grep -q "Kernel modules: mt7921e"
     echo "📡 Applying Wifi fixes for Mediatek MT7922 chip..."
 
     # Permanent fix - add this line to NetworkManager config
-    echo -e '\n[connection]\nwifi.powersave = 2' | tee -a /etc/NetworkManager/conf.d/wifi-powersave.conf
+    # Overwrite, not append, so re-running the script doesn't stack copies.
+    printf '[connection]\nwifi.powersave = 2\n' | tee /etc/NetworkManager/conf.d/wifi-powersave.conf
 
     # Create a config file for the driver
     echo 'options mt7921e disable_aspm=1' | tee /etc/modprobe.d/mt7921e.conf
@@ -534,6 +584,16 @@ fi
 if [ "${WITH_OLLAMA:-0}" = "1" ]; then
     echo "🦙 Installing Ollama..."
     curl -fsSL https://ollama.com/install.sh | sh
+    # Flash attention + 8-bit context cache: about half the VRAM per token of
+    # chat history, so a 24B model at IQ4_XS still gets ~16K context in 16 GB.
+    mkdir -p /etc/systemd/system/ollama.service.d
+    cat > /etc/systemd/system/ollama.service.d/10-vram.conf <<'EOF'
+[Service]
+Environment="OLLAMA_FLASH_ATTENTION=1"
+Environment="OLLAMA_KV_CACHE_TYPE=q8_0"
+EOF
+    systemctl daemon-reload
+    systemctl restart ollama
 fi
 
 # zapret: gets around SNI-based DPI blocking of Discord (Turkey). Uses the
@@ -582,7 +642,8 @@ sudo -Hu "$SUDO_USER" fc-cache -fv
 
 # Install and configure Starship prompt
 echo "🚀 Installing Starship prompt..."
-curl -sS https://starship.rs/install.sh | sh
+# --yes: the installer otherwise asks on /dev/tty and fails without a terminal (SSH).
+curl -sS https://starship.rs/install.sh | sh -s -- --yes
 if [ ! -L "/home/$SUDO_USER/.bashrc" ] && ! grep -q 'starship init bash' "/home/$SUDO_USER/.bashrc"; then
     echo '# Starship Prompt' >> "/home/$SUDO_USER/.bashrc"
     echo 'eval "$(starship init bash)"' >> "/home/$SUDO_USER/.bashrc"
@@ -594,29 +655,27 @@ rm -rf "$TEMP_DIR"
 #######################
 # Set Default Applications
 #######################
-kwriteconfig6 --file kdeglobals --group General --key TerminalService kitty.desktop
+# As the user: the script runs as root, so a bare kwriteconfig6 would write
+# root's kdeglobals and the desktop would keep opening Konsole.
+sudo -Hu "$SUDO_USER" kwriteconfig6 --file kdeglobals --group General --key TerminalApplication kitty
+sudo -Hu "$SUDO_USER" kwriteconfig6 --file kdeglobals --group General --key TerminalService kitty.desktop
 
 #######################
 # Remove Unwanted Packages
 #######################
 
 echo "🧹 Removing unwanted KDE packages..."
-dnf remove -y \
-    akonadi\* \
-    kmail \
-    kontact \
-    korganizer \
-    kaddressbook \
-    kalendarac \
-    kdepim-addons \
-    plasma-discover \
-    plasma-discover-notifier \
-    kwrite \
-    elisa-player \
-    dragon \
-    kmahjongg \
-    kmines \
-    kpat
+# Only names that are installed: dnf5 can fail the whole removal on a name it
+# can't find, and the KDE spin's package set shifts between releases.
+UNWANTED=(
+    kmail kontact korganizer kaddressbook kalendarac kdepim-addons
+    plasma-discover plasma-discover-notifier
+    kwrite elisa-player dragon kmahjongg kmines kpat
+)
+mapfile -t TO_REMOVE < <(rpm -qa --qf '%{NAME}\n' 'akonadi*'; for p in "${UNWANTED[@]}"; do rpm -q "$p" >/dev/null 2>&1 && echo "$p"; done)
+if [ "${#TO_REMOVE[@]}" -gt 0 ]; then
+    dnf remove -y "${TO_REMOVE[@]}"
+fi
 
 dnf autoremove -y
 

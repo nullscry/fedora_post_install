@@ -19,7 +19,10 @@ fi
 echo "Running post-installation script..."
 if [ -f "$SCRIPT_DIR/post_install.sh" ]; then
     chmod +x "$SCRIPT_DIR/post_install.sh"
-    "$SCRIPT_DIR/post_install.sh"
+    if ! "$SCRIPT_DIR/post_install.sh"; then
+        echo "post_install.sh FAILED - see the output above" >&2
+        exit 1
+    fi
 else
     echo "Warning: post_install.sh not found!"
 fi
